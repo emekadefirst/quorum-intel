@@ -8,6 +8,7 @@ Scrapling's CSS selectors.
 Politeness: feeds are meant for machines. Article pages are only fetched when the site's
 robots.txt allows it, with a minimum delay per domain.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -47,7 +48,9 @@ def html_to_text(fragment: str | None) -> str:
     if not fragment:
         return ""
     try:
-        return clean_text(Selector(f"<div>{fragment}</div>").get_all_text(separator=" ", strip=True))
+        return clean_text(
+            Selector(f"<div>{fragment}</div>").get_all_text(separator=" ", strip=True)
+        )
     except Exception:  # noqa: BLE001
         return clean_text(re.sub(r"<[^>]+>", " ", fragment))
 
@@ -91,21 +94,38 @@ def parse_feed(body: bytes, source: str, category: str) -> list[RawItem]:
         url = _child_text(el, "link") if kind == "item" else ""
         if kind == "entry" or not url:
             for c in el:  # Atom: <link href="..."/>
-                if _local(c.tag) == "link" and c.get("href") and c.get("rel", "alternate") == "alternate":
+                if (
+                    _local(c.tag) == "link"
+                    and c.get("href")
+                    and c.get("rel", "alternate") == "alternate"
+                ):
                     url = c.get("href")
                     break
         if not title or not url:
             continue
         date = parse_date(_child_text(el, "pubDate", "published", "updated", "date"))
         summary = html_to_text(_child_text(el, "description", "summary", "content"))
-        items.append(RawItem(source, category, title, url.strip(), date, clean_text(summary, 600)))
+        items.append(
+            RawItem(
+                source, category, title, url.strip(), date, clean_text(summary, 600)
+            )
+        )
     return items
 
 
-async def fetch_feed(src: dict, sem: asyncio.Semaphore, timeout: int = 15, retries: int = 2):
+async def fetch_feed(
+    src: dict, sem: asyncio.Semaphore, timeout: int = 15, retries: int = 2
+):
     """Return (items, health). Never raises: a dead source must not kill the digest."""
     t0 = time.monotonic()
-    health = {"name": src["name"], "url": src["url"], "ok": False, "status": None, "n_items": 0, "error": None}
+    health = {
+        "name": src["name"],
+        "url": src["url"],
+        "ok": False,
+        "status": None,
+        "n_items": 0,
+        "error": None,
+    }
     try:
         async with sem:
             page = await AsyncFetcher.get(src["url"], timeout=timeout, retries=retries)
@@ -135,7 +155,9 @@ class Politeness:
         if host not in self._robots:
             rp = robotparser.RobotFileParser()
             try:
-                page = await AsyncFetcher.get(f"{host}/robots.txt", timeout=10, retries=1)
+                page = await AsyncFetcher.get(
+                    f"{host}/robots.txt", timeout=10, retries=1
+                )
                 if page.status == 200:
                     rp.parse(bytes(page.body).decode("utf-8", "ignore").splitlines())
                     self._robots[host] = rp
@@ -158,7 +180,9 @@ class Politeness:
             await asyncio.sleep(gap)
 
 
-async def fetch_article_excerpt(url: str, polite: Politeness, limit: int = 1500) -> dict:
+async def fetch_article_excerpt(
+    url: str, polite: Politeness, limit: int = 1500
+) -> dict:
     """Best-effort main text. Returns {"status": ..., "excerpt": ...}."""
     try:
         if not await polite.allowed(url):
@@ -168,8 +192,16 @@ async def fetch_article_excerpt(url: str, polite: Politeness, limit: int = 1500)
         if page.status != 200:
             return {"status": f"http_{page.status}", "excerpt": ""}
         paras: list[str] = []
-        for sel in ("article p", "main p", "[role=main] p", "p"):  # most specific container first
-            paras = [clean_text(n.get_all_text(separator=" ", strip=True)) for n in page.css(sel)]
+        for sel in (
+            "article p",
+            "main p",
+            "[role=main] p",
+            "p",
+        ):  # most specific container first
+            paras = [
+                clean_text(n.get_all_text(separator=" ", strip=True))
+                for n in page.css(sel)
+            ]
             paras = [p for p in paras if len(p) > 40]
             if len(" ".join(paras)) > 300:
                 break

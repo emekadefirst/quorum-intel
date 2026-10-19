@@ -1,4 +1,5 @@
 """Volatility forecast (GARCH) and market regime classification."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -13,11 +14,15 @@ def garch_forecast(close: pd.Series, horizon: int, max_obs: int = 5000) -> dict 
         from arch import arch_model
     except ImportError:
         return None
-    r = (np.log(close).diff().dropna().iloc[-max_obs:]) * 1e4  # basis points keeps the optimiser well scaled
+    r = (
+        (np.log(close).diff().dropna().iloc[-max_obs:]) * 1e4
+    )  # basis points keeps the optimiser well scaled
     if len(r) < 500:
         return None
     try:
-        res = arch_model(r, mean="Zero", vol="GARCH", p=1, q=1, dist="t", rescale=False).fit(disp="off")
+        res = arch_model(
+            r, mean="Zero", vol="GARCH", p=1, q=1, dist="t", rescale=False
+        ).fit(disp="off")
         var = res.forecast(horizon=horizon).variance.iloc[-1].to_numpy()
         p = res.params
         return {

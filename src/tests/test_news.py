@@ -4,7 +4,6 @@ import threading
 from datetime import datetime, timezone
 
 import pytest
-
 from quant_layer.news.digest import build_news_digest
 from quant_layer.news.fetch import parse_feed
 from quant_layer.news.relevance import tag_and_score
@@ -36,7 +35,9 @@ ARTICLE = b"""<html><body><nav>menu</nav><article>
 
 @pytest.fixture()
 def site(tmp_path):
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(tmp_path))
+    handler = functools.partial(
+        http.server.SimpleHTTPRequestHandler, directory=str(tmp_path)
+    )
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     handler.func.log_message = lambda *a, **k: None
     base = f"http://127.0.0.1:{srv.server_address[1]}"
@@ -76,12 +77,17 @@ def test_relevance_case_sensitive_acronyms():
 
 def test_digest_end_to_end_with_scrapling(site):
     base, _ = site
-    d = build_news_digest(sources=[{"name": "Local", "url": f"{base}/feed.xml", "category": "news"},
-                                   {"name": "Dead", "url": "http://127.0.0.1:9/feed.xml", "category": "news"}],
-                          now=NOW, lookback_hours=48)
+    d = build_news_digest(
+        sources=[
+            {"name": "Local", "url": f"{base}/feed.xml", "category": "news"},
+            {"name": "Dead", "url": "http://127.0.0.1:9/feed.xml", "category": "news"},
+        ],
+        now=NOW,
+        lookback_hours=48,
+    )
     assert d["meta"]["sources_ok"] == 1 and d["meta"]["sources_total"] == 2
     titles = [i["title"] for i in d["items"]]
-    assert titles[0].startswith("BoE holds")          # highest priority first
+    assert titles[0].startswith("BoE holds")  # highest priority first
     assert "Oil jumps on Middle East tensions" in titles
     assert not any("bake sale" in t for t in titles)  # irrelevant filtered
     assert not any("Old story" in t for t in titles)  # outside lookback
@@ -104,7 +110,17 @@ def test_article_excerpt_and_robots(site):
 def test_dedupe_same_story_two_sources():
     from quant_layer.news.digest import _dedupe
 
-    a = {"title": "BoE holds rates as inflation cools", "url": "http://a/1", "source": "A", "_final": 5}
-    b = {"title": "BoE holds rates as inflation cools sharply", "url": "http://b/9", "source": "B", "_final": 4}
+    a = {
+        "title": "BoE holds rates as inflation cools",
+        "url": "http://a/1",
+        "source": "A",
+        "_final": 5,
+    }
+    b = {
+        "title": "BoE holds rates as inflation cools sharply",
+        "url": "http://b/9",
+        "source": "B",
+        "_final": 4,
+    }
     out = _dedupe([a, b])
     assert len(out) == 1 and out[0]["also_reported_by"] == ["B"]

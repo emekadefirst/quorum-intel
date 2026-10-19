@@ -1,4 +1,5 @@
 """Build the news digest the LLM layer consumes."""
+
 from __future__ import annotations
 
 import asyncio
@@ -35,7 +36,10 @@ def _dedupe(items: list[dict]) -> list[dict]:
             same_url = it["url"].split("?")[0] == k["url"].split("?")[0]
             jac = len(t & kt) / max(len(t | kt), 1)
             if same_url or jac >= 0.75:
-                if it["source"] != k["source"] and it["source"] not in k["also_reported_by"]:
+                if (
+                    it["source"] != k["source"]
+                    and it["source"] not in k["also_reported_by"]
+                ):
                     k["also_reported_by"].append(it["source"])
                 break
         else:
@@ -45,10 +49,16 @@ def _dedupe(items: list[dict]) -> list[dict]:
     return kept
 
 
-async def abuild_news_digest(sources: list[dict] | None = None, lookback_hours: float = 48,
-                             max_items: int = 25, min_score: float = 2.0, half_life_hours: float = 12,
-                             article_excerpts: int = 0, concurrency: int = 5,
-                             now: datetime | None = None) -> dict:
+async def abuild_news_digest(
+    sources: list[dict] | None = None,
+    lookback_hours: float = 48,
+    max_items: int = 25,
+    min_score: float = 2.0,
+    half_life_hours: float = 12,
+    article_excerpts: int = 0,
+    concurrency: int = 5,
+    now: datetime | None = None,
+) -> dict:
     sources = sources or load_sources()
     now = now or datetime.now(timezone.utc)
     sem = asyncio.Semaphore(concurrency)
@@ -60,26 +70,37 @@ async def abuild_news_digest(sources: list[dict] | None = None, lookback_hours: 
     scored: list[dict] = []
     for r in raw:
         age_h = (now - r.published).total_seconds() / 3600 if r.published else None
-        if age_h is not None and (age_h > lookback_hours or age_h < -1):  # stale, or dated in the future
+        if age_h is not None and (
+            age_h > lookback_hours or age_h < -1
+        ):  # stale, or dated in the future
             continue
         topics, rel = tag_and_score(r.title, r.summary)
         if rel < min_score:
             continue
         decay = 0.5 ** (max(age_h, 0) / half_life_hours) if age_h is not None else 0.5
-        scored.append({
-            "id": hashlib.sha1(r.url.encode()).hexdigest()[:10],
-            "source": r.source, "source_category": r.category,
-            "published": r.published.isoformat() if r.published else None,
-            "age_hours": None if age_h is None else round(max(age_h, 0), 1),
-            "title": r.title, "summary": r.summary, "url": r.url,
-            "topics": topics, "relevance": rel, "_final": rel * decay,
-        })
+        scored.append(
+            {
+                "id": hashlib.sha1(r.url.encode()).hexdigest()[:10],
+                "source": r.source,
+                "source_category": r.category,
+                "published": r.published.isoformat() if r.published else None,
+                "age_hours": None if age_h is None else round(max(age_h, 0), 1),
+                "title": r.title,
+                "summary": r.summary,
+                "url": r.url,
+                "topics": topics,
+                "relevance": rel,
+                "_final": rel * decay,
+            }
+        )
 
     items = _dedupe(scored)[:max_items]
 
     if article_excerpts > 0:
         polite = Politeness()
-        extras = await asyncio.gather(*(fetch_article_excerpt(i["url"], polite) for i in items[:article_excerpts]))
+        extras = await asyncio.gather(
+            *(fetch_article_excerpt(i["url"], polite) for i in items[:article_excerpts])
+        )
         for i, ex in zip(items, extras):
             i["article_status"], i["article_excerpt"] = ex["status"], ex["excerpt"]
 
@@ -95,7 +116,9 @@ async def abuild_news_digest(sources: list[dict] | None = None, lookback_hours: 
             "raw_items": len(raw),
             "relevant_items_returned": len(items),
         },
-        "topic_counts": dict(Counter(t for i in items for t in i["topics"]).most_common()),
+        "topic_counts": dict(
+            Counter(t for i in items for t in i["topics"]).most_common()
+        ),
         "items": items,
         "source_health": health,
         "reading_guide": [
@@ -114,7 +137,9 @@ def build_news_digest(**kwargs) -> dict:
     except RuntimeError:
         return asyncio.run(abuild_news_digest(**kwargs))
     box: dict = {}
-    t = threading.Thread(target=lambda: box.update(r=asyncio.run(abuild_news_digest(**kwargs))))
+    t = threading.Thread(
+        target=lambda: box.update(r=asyncio.run(abuild_news_digest(**kwargs)))
+    )
     t.start()
     t.join()
     return box["r"]

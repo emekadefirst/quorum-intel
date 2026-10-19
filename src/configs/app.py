@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,8 +16,3 @@ REDOC_URL = "/redoc" if DEBUG else None
 OPENAPI_URL = "/json" if DEBUG else None
 
 ACCEPTED_CORE_ORIGIN = list(os.getenv("ACCEPTED_CORE_ORIGIN", "").split(","))
-
-
-
-
-

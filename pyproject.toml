@@ -4,21 +4,32 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "arch>=8.0.0",
-    "argon2-cffi>=25.1.0",
-    "defusedxml>=0.7.1",
-    "fastapi[standard]>=0.146.0",
-    "lightgbm>=4.7.0",
-    "numpy>=2.5.4",
-    "pandas>=3.0.6",
-    "pydantic[email]>=2.14.1",
-    "pyjwt>=2.15.1",
-    "pytest>=9.1.1",
-    "scikit-learn>=1.9.1",
-    "scipy>=1.18.1",
-    "scrapling[fetchers]>=0.5",
-    "stumpy>=1.14.1",
-    "tortoise-orm>=1.1.9",
-    "yfinance>=1.7.0",
-]
+dependencies = ["aerich>=0.10.1", "arch>=8.0.0", "argon2-cffi>=25.1.0", "defusedxml>=0.7.1", "fastapi[standard]>=0.146.0", "lightgbm>=4.7.0", "numpy>=2.5.4", "pandas>=3.0.6", "pydantic[email]>=2.14.1", "pyjwt>=2.15.1", "pytest>=9.1.1", "scikit-learn>=1.9.1", "scipy>=1.18.1", "scrapling[fetchers]>=0.5", "stumpy>=1.14.1", "tomlkit>=0.15.2", "tortoise-orm>=1.1.9", "uvicorn>=0.54.0", "yfinance>=1.7.0"]
+
+[project.scripts]
+dev = "src.scripts.server:dev"
+start = "src.scripts.server:main"
+db-init = "src.scripts.db:init"
+db-init-db = "src.scripts.db:init_db"
+db-migrate = "src.scripts.db:migrate"
+db-upgrade = "src.scripts.db:upgrade"
+db-downgrade = "src.scripts.db:downgrade"
+db-history = "src.scripts.db:history"
+
+[dependency-groups]
+dev = ["ruff>=0.17.1"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.tortoise]
+tortoise_orm = "src.core.database.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,15 +1,19 @@
 """One call that returns everything the LLM layer needs: quant insights + news digest."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
 import pandas as pd
 
-from .insights import Config, build_insights
 from src.news.digest import build_news_digest
 
+from .insights import Config, build_insights
 
-def build_intelligence(df: pd.DataFrame, cfg: Config | None = None, news: dict | None = None) -> dict:
+
+def build_intelligence(
+    df: pd.DataFrame, cfg: Config | None = None, news: dict | None = None
+) -> dict:
     """`news` is passed straight to build_news_digest (lookback_hours, max_items, sources, ...)."""
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),

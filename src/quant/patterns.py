@@ -3,13 +3,16 @@
 similar_setups: "find past moments that looked like now" and report what happened next.
 novelty: how unusual is the current shape versus everything seen before.
 """
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
 
-def similar_setups(close: pd.Series, window: int = 48, horizon: int = 12, top_k: int = 30) -> dict:
+def similar_setups(
+    close: pd.Series, window: int = 48, horizon: int = 12, top_k: int = 30
+) -> dict:
     import stumpy
 
     T = np.log(close.to_numpy(dtype="float64"))
@@ -30,7 +33,9 @@ def similar_setups(close: pd.Series, window: int = 48, horizon: int = 12, top_k:
     for i in np.argsort(dp):
         if not np.isfinite(dp[i]):
             break
-        if all(abs(i - j) >= window for j in picked):  # de-duplicate neighbouring matches
+        if all(
+            abs(i - j) >= window for j in picked
+        ):  # de-duplicate neighbouring matches
             picked.append(int(i))
         if len(picked) >= top_k:
             break
@@ -49,10 +54,15 @@ def similar_setups(close: pd.Series, window: int = 48, horizon: int = 12, top_k:
         "mean_match_distance": round(float(dists.mean()), 3),
         "max_possible_distance": round(float(2 * np.sqrt(window)), 3),
         "hit_rate_up": round(float((fwd > 0).mean()), 3),
-        "hit_rate_stderr": round(float(np.sqrt(0.25 / len(picked))), 3),  # ~±0.09 at 30 matches: treat extremes as noise
+        "hit_rate_stderr": round(
+            float(np.sqrt(0.25 / len(picked))), 3
+        ),  # ~±0.09 at 30 matches: treat extremes as noise
         "mean_fwd_return_bps": round(float(bps.mean()), 2),
         "median_fwd_return_bps": round(float(np.median(bps)), 2),
-        "fwd_return_p25_p75_bps": [round(float(np.percentile(bps, 25)), 2), round(float(np.percentile(bps, 75)), 2)],
+        "fwd_return_p25_p75_bps": [
+            round(float(np.percentile(bps, 25)), 2),
+            round(float(np.percentile(bps, 75)), 2),
+        ],
         "best_match_times": [close.index[e].isoformat() for e in ends[:3]],
     }
 

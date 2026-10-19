@@ -1,5 +1,6 @@
 class AppError(Exception):
     """Base class for domain errors."""
+
     status_code = 500
 
     def __init__(self, message: str = "") -> None:

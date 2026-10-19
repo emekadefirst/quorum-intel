@@ -1,5 +1,6 @@
 """Indicators and model features. Everything here is causal: the value at bar t
 uses only data up to and including bar t (tests/test_no_lookahead.py checks this)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -9,7 +10,8 @@ import pandas as pd
 def true_range(df: pd.DataFrame) -> pd.Series:
     pc = df["close"].shift()
     return pd.concat(
-        [df["high"] - df["low"], (df["high"] - pc).abs(), (df["low"] - pc).abs()], axis=1
+        [df["high"] - df["low"], (df["high"] - pc).abs(), (df["low"] - pc).abs()],
+        axis=1,
     ).max(axis=1)
 
 
@@ -25,7 +27,10 @@ def rsi(close: pd.Series, n: int = 14) -> pd.Series:
 
 
 def macd(close: pd.Series, fast=12, slow=26, signal=9):
-    line = close.ewm(span=fast, adjust=False).mean() - close.ewm(span=slow, adjust=False).mean()
+    line = (
+        close.ewm(span=fast, adjust=False).mean()
+        - close.ewm(span=slow, adjust=False).mean()
+    )
     sig = line.ewm(span=signal, adjust=False).mean()
     return line, sig, line - sig
 

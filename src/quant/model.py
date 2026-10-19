@@ -6,6 +6,7 @@
 - Trade statistics are computed on NON-overlapping bars (every `horizon`-th), since
   overlapping forward returns inflate apparent significance.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -20,14 +21,23 @@ def _make_model():
         from lightgbm import LGBMClassifier
 
         return LGBMClassifier(
-            n_estimators=300, learning_rate=0.03, num_leaves=15, min_child_samples=100,
-            subsample=0.8, subsample_freq=1, colsample_bytree=0.8, reg_lambda=5.0,
-            verbose=-1, random_state=7,
+            n_estimators=300,
+            learning_rate=0.03,
+            num_leaves=15,
+            min_child_samples=100,
+            subsample=0.8,
+            subsample_freq=1,
+            colsample_bytree=0.8,
+            reg_lambda=5.0,
+            verbose=-1,
+            random_state=7,
         )
     except ImportError:
         from sklearn.ensemble import HistGradientBoostingClassifier
 
-        return HistGradientBoostingClassifier(max_depth=4, learning_rate=0.05, l2_regularization=5.0, random_state=7)
+        return HistGradientBoostingClassifier(
+            max_depth=4, learning_rate=0.05, l2_regularization=5.0, random_state=7
+        )
 
 
 def _quality(auc: float, z: float) -> str:
@@ -38,10 +48,18 @@ def _quality(auc: float, z: float) -> str:
     return "modest"  # deliberately never "strong" for FX
 
 
-def run_model(df: pd.DataFrame, horizon: int = 12, n_folds: int = 6, min_train: int = 2000,
-              conf_thr: float = 0.55, cost_bps: float = 1.0) -> dict:
+def run_model(
+    df: pd.DataFrame,
+    horizon: int = 12,
+    n_folds: int = 6,
+    min_train: int = 2000,
+    conf_thr: float = 0.55,
+    cost_bps: float = 1.0,
+) -> dict:
     X_all = build_features(df)
-    fwd = np.log(df["close"]).diff(horizon).shift(-horizon)  # return over next `horizon` bars
+    fwd = (
+        np.log(df["close"]).diff(horizon).shift(-horizon)
+    )  # return over next `horizon` bars
     y_all = (fwd > 0).astype(int)
 
     valid = X_all.notna().all(axis=1) & fwd.notna()
@@ -82,17 +100,29 @@ def run_model(df: pd.DataFrame, horizon: int = 12, n_folds: int = 6, min_train: 
         "n_trades": k,
         "hit_rate": round(float((gross_bps[conf] > 0).mean()), 3) if k else None,
         "avg_net_bps_per_trade": round(float(net_bps[conf].mean()), 2) if k else None,
-        "avg_net_bps_stderr": round(float(net_bps[conf].std(ddof=1) / np.sqrt(k)), 2) if k > 1 else None,
+        "avg_net_bps_stderr": round(float(net_bps[conf].std(ddof=1) / np.sqrt(k)), 2)
+        if k > 1
+        else None,
         "cost_bps_assumed": cost_bps,
     }
 
     # final model on all labelled data, predict the latest bar
     final = _make_model().fit(X, y)
     latest_x = X_all.iloc[[-1]]
-    p_up = float(final.predict_proba(latest_x)[:, 1][0]) if latest_x.notna().all(axis=1).iloc[0] else None
+    p_up = (
+        float(final.predict_proba(latest_x)[:, 1][0])
+        if latest_x.notna().all(axis=1).iloc[0]
+        else None
+    )
 
-    imp = pd.Series(getattr(final, "feature_importances_", np.zeros(X.shape[1])), index=X.columns)
-    imp = (imp / imp.sum()).sort_values(ascending=False).head(5) if imp.sum() > 0 else imp.head(5)
+    imp = pd.Series(
+        getattr(final, "feature_importances_", np.zeros(X.shape[1])), index=X.columns
+    )
+    imp = (
+        (imp / imp.sum()).sort_values(ascending=False).head(5)
+        if imp.sum() > 0
+        else imp.head(5)
+    )
 
     return {
         "available": True,

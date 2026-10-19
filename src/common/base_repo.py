@@ -1,41 +1,44 @@
-from typing import Any, Generic, Optional, TypeVar
-from tortoise.exceptions import IntegrityError
+from typing import Any
+
+from tortoise.exceptions import DoesNotExist, IntegrityError
 from tortoise.models import Model
 
 
-
 class NotFoundError(Exception): ...
+
+
 class ConflictError(Exception): ...
+
 
 class BaseRepository:
     def __init__(self, model: type[Model]):
         self.model = model
 
-    # create action 
+    # create action
 
     async def bulk_create(self, rows: list[dict[str, Any]]) -> None:
         try:
             await self.model.bulk_create([self.model(**row) for row in rows])
         except IntegrityError as error:
             raise ConflictError(f"{self.model.__name__} already exists") from error
-        
+
     async def create(self, **data: Any) -> Model:
         try:
             return await self.model.create(**data)
         except IntegrityError as error:
             raise ConflictError(f"{self.model.__name__} already exists") from error
 
-    # get action 
+    # get action
     async def get(self, *q: Any, **filters: Any) -> Model | None:
         try:
             return await self.model.get(*q, **filters)
-        except self.model.DoesNotExist:
+        except DoesNotExist:
             return None
 
     async def get_or_404(self, *q: Any, **filters: Any) -> Model:
         try:
             return await self.model.get(*q, **filters)
-        except self.model.DoesNotExist:
+        except DoesNotExist:
             raise NotFoundError(f"{self.model.__name__} not found")
 
     # update action
@@ -46,7 +49,6 @@ class BaseRepository:
             return obj
         except IntegrityError as error:
             raise ConflictError(f"{self.model.__name__} already exists") from error
-
 
     # delete action
     async def delete(self, id: str) -> None:

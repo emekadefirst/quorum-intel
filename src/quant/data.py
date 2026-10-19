@@ -1,4 +1,5 @@
 """Load and validate raw OHLC data."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -40,11 +41,15 @@ def load_csv(path: str, time_col: str | None = None) -> pd.DataFrame:
     return _standardise(pd.read_csv(path), time_col)
 
 
-def fetch_yfinance(symbol: str = "GBPUSD=X", interval: str = "1h", period: str = "2y") -> pd.DataFrame:
+def fetch_yfinance(
+    symbol: str = "GBPUSD=X", interval: str = "1h", period: str = "2y"
+) -> pd.DataFrame:
     """Quick public data for prototyping. Note: Yahoo caps 1h history at ~730 days."""
     import yfinance as yf  # optional dependency
 
-    raw = yf.download(symbol, interval=interval, period=period, auto_adjust=False, progress=False)
+    raw = yf.download(
+        symbol, interval=interval, period=period, auto_adjust=False, progress=False
+    )
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
     return _standardise(raw.reset_index())
@@ -59,4 +64,8 @@ def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
 
 def bars_per_day(df: pd.DataFrame) -> float:
     step = df.index.to_series().diff().median()
-    return float(pd.Timedelta("1D") / step) if pd.notna(step) and step > pd.Timedelta(0) else 1.0
+    return (
+        float(pd.Timedelta("1D") / step)
+        if pd.notna(step) and step > pd.Timedelta(0)
+        else 1.0
+    )

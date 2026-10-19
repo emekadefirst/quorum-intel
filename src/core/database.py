@@ -1,7 +1,9 @@
 from src.configs.database import DATABASE_NAME
 
-
-
+MODEL_MODULES = [
+    "src.modules.account.models",
+    # Add new model modules here
+]
 
 TORTOISE_ORM = {
     "connections": {
@@ -9,9 +11,8 @@ TORTOISE_ORM = {
     },
     "apps": {
         "models": {
-            "models": ["src.core.models"],
+            "models": [*MODEL_MODULES, "aerich.models"],
             "default_connection": "default",
-                "migrations": "migrations",
         }
     },
     "use_tz": True,

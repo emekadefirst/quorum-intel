@@ -8,7 +8,11 @@ def run_quant():
     p = argparse.ArgumentParser(description="Quant layer: raw OHLC -> JSON insights")
     src = p.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="CSV with time + open/high/low/close")
-    src.add_argument("--yfinance", action="store_true", help="fetch GBPUSD=X from Yahoo (prototyping)")
+    src.add_argument(
+        "--yfinance",
+        action="store_true",
+        help="fetch GBPUSD=X from Yahoo (prototyping)",
+    )
     p.add_argument("--time-col", default=None)
     p.add_argument("--resample", default=None, help="e.g. 1h, 4h, 1D")
     p.add_argument("--timeframe", default="1h", help="label for the output")
@@ -16,8 +20,14 @@ def run_quant():
     p.add_argument("--horizon", type=int, default=12)
     p.add_argument("--window", type=int, default=48)
     p.add_argument("--cost-bps", type=float, default=1.0)
-    p.add_argument("--no-novelty", action="store_true", help="skip matrix-profile novelty (faster)")
-    p.add_argument("--with-news", action="store_true", help="also fetch the news digest (Scrapling) and emit one combined intelligence JSON")
+    p.add_argument(
+        "--no-novelty", action="store_true", help="skip matrix-profile novelty (faster)"
+    )
+    p.add_argument(
+        "--with-news",
+        action="store_true",
+        help="also fetch the news digest (Scrapling) and emit one combined intelligence JSON",
+    )
     p.add_argument("--news-hours", type=float, default=48)
     p.add_argument("--out", default=None, help="write JSON here (default: stdout)")
     a = p.parse_args()
@@ -25,8 +35,13 @@ def run_quant():
     df = load_csv(a.csv, a.time_col) if a.csv else fetch_yfinance(interval=a.interval)
     if a.resample:
         df = resample_ohlc(df, a.resample)
-    cfg = Config(timeframe=a.timeframe, horizon=a.horizon, window=a.window,
-                 cost_bps=a.cost_bps, novelty=not a.no_novelty)
+    cfg = Config(
+        timeframe=a.timeframe,
+        horizon=a.horizon,
+        window=a.window,
+        cost_bps=a.cost_bps,
+        novelty=not a.no_novelty,
+    )
     if a.with_news:
         from .intelligence import build_intelligence
 
@@ -38,5 +53,3 @@ def run_quant():
         print(f"wrote {a.out}")
     else:
         print(js)
-
-
