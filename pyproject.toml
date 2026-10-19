@@ -4,7 +4,33 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["aerich>=0.10.1", "arch>=8.0.0", "argon2-cffi>=25.1.0", "defusedxml>=0.7.1", "fastapi[standard]>=0.146.0", "lightgbm>=4.7.0", "numpy>=2.5.4", "pandas>=3.0.6", "pydantic[email]>=2.14.1", "pyjwt>=2.15.1", "pytest>=9.1.1", "scikit-learn>=1.9.1", "scipy>=1.18.1", "scrapling[fetchers]>=0.5", "stumpy>=1.14.1", "tomlkit>=0.15.2", "tortoise-orm>=1.1.9", "uvicorn>=0.54.0", "yfinance>=1.7.0"]
+dependencies = [
+    "aerich>=0.10.1",
+    "arch>=8.0.0",
+    "argon2-cffi>=25.1.0",
+    "defusedxml>=0.7.1",
+    "dukascopy-python>=4.0.1",
+    "fastapi[standard]>=0.146.0",
+    "langchain>=1.4.6",
+    "langchain-anthropic>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+    "langchain-openai>=0.2.0",
+    "lightgbm>=4.7.0",
+    "numpy>=2.5.4",
+    "pandas>=3.0.6",
+    "pyarrow>=26.0.0",
+    "pydantic[email]>=2.14.1",
+    "pyjwt>=2.15.1",
+    "pytest>=9.1.1",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
+    "scrapling[fetchers]>=0.5",
+    "stumpy>=1.14.1",
+    "tomlkit>=0.15.2",
+    "tortoise-orm>=1.1.9",
+    "uvicorn>=0.54.0",
+    "yfinance>=1.7.0",
+]
 
 [project.scripts]
 dev = "src.scripts.server:dev"

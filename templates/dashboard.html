@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard · Quorum{% endblock %}
+
+{% block content %}
+<div x-data="dashboard" class="space-y-8">
+    <div class="flex items-end justify-between flex-wrap gap-4">
+        <div>
+            <p class="text-sm text-slate-500">GBP/USD · 1h</p>
+            <h1 class="text-3xl font-semibold text-white mt-1">Market intelligence</h1>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-slate-500">
+            <template x-if="loading">
+                <span class="flex items-center gap-2">
+                    <span class="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span>Loading...</span>
+                </span>
+            </template>
+            <template x-if="!loading && !error">
+                <span class="flex items-center gap-2">
+                    <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                    <span x-text="signals?.meta?.as_of ? new Date(signals.meta.as_of).toLocaleString() : 'Live'"></span>
+                </span>
+            </template>
+            <template x-if="error">
+                <span class="text-red-400" x-text="error"></span>
+            </template>
+        </div>
+    </div>
+
+    <!-- KPI cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Price</p>
+            <p class="text-2xl font-semibold text-white mt-2" x-text="fmtNum(price, 5)"></p>
+            <p class="text-xs mt-1" :class="toneForChange(change1d)" x-text="'1d ' + fmtPct(change1d)"></p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Trend</p>
+            <p class="text-2xl font-semibold text-white mt-2 capitalize" x-text="trend"></p>
+            <p class="text-xs text-slate-500 mt-1">vol: <span class="capitalize" x-text="volState"></span></p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p class="text-xs uppercase tracking-wider text-slate-500">Model P(up)</p>
+            <p class="text-2xl font-semibold text-white mt-2"
+               x-text="pUp == null ? '—' : (pUp * 100).toFixed(1) + '%'"></p>
+            <p class="text-xs mt-1 capitalize" :class="toneForQuality(quality)"
+               x-text="quality.replaceAll('_', ' ')"></p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p class="text-xs uppercase tracking-wider text-slate-500">News priority</p>
+            <p class="text-2xl font-semibold text-white mt-2"
+               x-text="topPriority == null ? '—' : topPriority.toFixed(2)"></p>
+            <p class="text-xs text-slate-500 mt-1"
+               x-text="(news?.meta?.relevant_items_returned ?? 0) + ' items'"></p>
+        </div>
+    </div>
+
+    <!-- Two-column body -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white">Regime & volatility</h2>
+                <a href="/signals" class="text-xs text-brand-500 hover:text-brand-400">Full view →</a>
+            </div>
+            <dl class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <dt class="text-slate-500 text-xs uppercase tracking-wider">ADX(14)</dt>
+                    <dd class="text-white mt-1" x-text="fmtNum(signals?.regime?.adx14, 1)"></dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500 text-xs uppercase tracking-wider">RSI(14)</dt>
+                    <dd class="text-white mt-1" x-text="fmtNum(signals?.snapshot?.rsi14, 1)"></dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500 text-xs uppercase tracking-wider">Next-bar vol</dt>
+                    <dd class="text-white mt-1" x-text="fmtPct(signals?.volatility_forecast?.next_bar_vol_pct, 3)"></dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500 text-xs uppercase tracking-wider">Horizon vol</dt>
+                    <dd class="text-white mt-1" x-text="fmtPct(signals?.volatility_forecast?.horizon_vol_pct, 3)"></dd>
+                </div>
+                <div class="col-span-2">
+                    <dt class="text-slate-500 text-xs uppercase tracking-wider">1σ price range (horizon)</dt>
+                    <dd class="text-white mt-1" x-text="
+                        signals?.volatility_forecast?.one_sigma_price_range_over_horizon
+                            ? signals.volatility_forecast.one_sigma_price_range_over_horizon.map(v => fmtNum(v, 5)).join(' — ')
+                            : '—'
+                    "></dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">Latest headlines</h2>
+            <template x-if="loading">
+                <p class="text-sm text-slate-500">Loading...</p>
+            </template>
+            <template x-if="!loading && topHeadlines.length === 0">
+                <p class="text-sm text-slate-500">No news in window.</p>
+            </template>
+            <ul class="space-y-3 text-sm">
+                <template x-for="item in topHeadlines" :key="item.id">
+                    <li class="border-b border-slate-800 last:border-0 pb-3 last:pb-0">
+                        <a :href="item.url" target="_blank" rel="noopener"
+                           class="block hover:text-brand-400 text-slate-200" x-text="item.title"></a>
+                        <div class="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                            <span x-text="item.source"></span>
+                            <span>·</span>
+                            <span x-text="item.age_hours != null ? item.age_hours.toFixed(1) + 'h ago' : ''"></span>
+                            <span class="ml-auto text-brand-500" x-text="'p=' + item.priority"></span>
+                        </div>
+                    </li>
+                </template>
+            </ul>
+            <a href="/news" class="mt-4 inline-block text-sm text-brand-500 hover:text-brand-400">View all →</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

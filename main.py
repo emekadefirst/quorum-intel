@@ -2,7 +2,6 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from tortoise.contrib.fastapi import register_tortoise
 
@@ -25,15 +24,9 @@ app = FastAPI(
     openapi_url=OPENAPI_URL,
 )
 
-TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-app.mount("/ui/assets", StaticFiles(directory=TEMPLATES_DIR), name="ui-assets")
-
-
-@app.get("/", include_in_schema=False)
-@app.get("/ui", include_in_schema=False)
-async def home_page():
-    return FileResponse(TEMPLATES_DIR / "index.html")
-
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,

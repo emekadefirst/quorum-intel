@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Signals · Quorum{% endblock %}
+
+{% block content %}
+<div x-data="signalsPage" class="space-y-6">
+    <div>
+        <h1 class="text-3xl font-semibold text-white">Signals</h1>
+        <p class="mt-2 text-sm text-slate-400">Quant insights from the current OHLC window.</p>
+    </div>
+
+    <template x-if="loading">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6 text-sm text-slate-500">
+            Loading insights...
+        </div>
+    </template>
+
+    <template x-if="error">
+        <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400" x-text="error"></div>
+    </template>
+
+    <template x-if="!loading && signals">
+        <div class="space-y-6">
+            <!-- Meta -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <h2 class="text-sm uppercase tracking-wider text-slate-500 mb-3">Metadata</h2>
+                <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><dt class="text-slate-500">Pair</dt><dd class="text-white font-mono mt-1" x-text="signals.meta.pair"></dd></div>
+                    <div><dt class="text-slate-500">Timeframe</dt><dd class="text-white font-mono mt-1" x-text="signals.meta.timeframe"></dd></div>
+                    <div><dt class="text-slate-500">Bars used</dt><dd class="text-white font-mono mt-1" x-text="signals.meta.bars_used"></dd></div>
+                    <div><dt class="text-slate-500">As of</dt><dd class="text-white font-mono mt-1 text-xs" x-text="new Date(signals.meta.as_of).toLocaleString()"></dd></div>
+                </dl>
+            </div>
+
+            <!-- Snapshot -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Snapshot</h2>
+                <pre class="overflow-x-auto text-xs text-slate-300 font-mono bg-slate-950 p-4 rounded-md" x-text="JSON.stringify(signals.snapshot, null, 2)"></pre>
+            </div>
+
+            <!-- Regime -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Regime</h2>
+                <pre class="overflow-x-auto text-xs text-slate-300 font-mono bg-slate-950 p-4 rounded-md" x-text="JSON.stringify(signals.regime, null, 2)"></pre>
+            </div>
+
+            <!-- Model -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Model</h2>
+                <pre class="overflow-x-auto text-xs text-slate-300 font-mono bg-slate-950 p-4 rounded-md" x-text="JSON.stringify(signals.model, null, 2)"></pre>
+            </div>
+
+            <!-- Levels -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <h2 class="text-lg font-semibold text-white mb-4">Support / Resistance</h2>
+                <pre class="overflow-x-auto text-xs text-slate-300 font-mono bg-slate-950 p-4 rounded-md" x-text="JSON.stringify(signals.levels, null, 2)"></pre>
+            </div>
+        </div>
+    </template>
+</div>
+{% endblock %}

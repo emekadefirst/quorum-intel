@@ -21,6 +21,13 @@ async def login(
     return await AccountService.login(data, request, response)
 
 
+@router.post("/logout")
+async def logout(response: Response) -> dict[str, str]:
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+    return {"status": "ok"}
+
+
 @router.post("", status_code=201)
 async def create_account(data: CreateAccount) -> AccountObjectDTO:
     return await AccountService.create(data)
