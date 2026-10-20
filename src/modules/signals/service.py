@@ -19,14 +19,16 @@ _TTL = 300  # 5 minutes
 
 # How much history to pull per interval. Enough bars for the model (~2000+)
 # and GARCH (~500+) without downloading 20 years every time.
+# Keep lookbacks modest: Dukascopy downloads bar-by-bar on first run.
+# After the first fetch, results are cached to parquet (daily key).
 _LOOKBACK_DAYS = {
-    "1m": 7,
-    "5m": 30,
-    "15m": 60,
-    "30m": 90,
-    "1h": 180,
-    "4h": 365,
-    "1d": 2000,
+    "1m": 3,
+    "5m": 14,
+    "15m": 30,
+    "30m": 60,
+    "1h": 90,
+    "4h": 180,
+    "1d": 1000,
 }
 
 

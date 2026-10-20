@@ -11,6 +11,7 @@ dependencies = [
     "defusedxml>=0.7.1",
     "dukascopy-python>=4.0.1",
     "fastapi[standard]>=0.146.0",
+    "fastparquet>=2026.9.0",
     "langchain>=1.4.6",
     "langchain-anthropic>=0.3.0",
     "langchain-google-genai>=2.0.0",
