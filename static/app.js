@@ -3,12 +3,58 @@
 
 const API = "";
 
-async function apiFetch(path, options = {}) {
-    const res = await fetch(API + path, {
+// Paths that must NEVER trigger a refresh/retry loop on 401.
+const AUTH_PATHS = new Set(["/accounts/login", "/accounts/refresh", "/accounts/logout"]);
+
+// Shared promise so parallel 401s only call /accounts/refresh once.
+let _refreshing = null;
+
+async function _rawFetch(path, options) {
+    return fetch(API + path, {
         credentials: "include",
         headers: { "Content-Type": "application/json", ...(options.headers || {}) },
         ...options,
     });
+}
+
+async function _refreshTokens() {
+    if (!_refreshing) {
+        _refreshing = (async () => {
+            try {
+                const r = await _rawFetch("/accounts/refresh", { method: "POST" });
+                return r.ok;
+            } catch (_) {
+                return false;
+            } finally {
+                // Clear after a tick so simultaneous callers all see the same result.
+                setTimeout(() => { _refreshing = null; }, 0);
+            }
+        })();
+    }
+    return _refreshing;
+}
+
+function _onPublicPage() {
+    const p = window.location.pathname;
+    return p === "/login" || p === "/register";
+}
+
+async function apiFetch(path, options = {}) {
+    let res = await _rawFetch(path, options);
+
+    // On 401 for any non-auth endpoint, try one refresh + retry.
+    if (res.status === 401 && !AUTH_PATHS.has(path)) {
+        const ok = await _refreshTokens();
+        if (ok) {
+            res = await _rawFetch(path, options);
+        } else if (!_onPublicPage()) {
+            // Can't recover; send the user to login with return path.
+            const next = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/login?next=${next}`;
+            throw new Error("Session expired");
+        }
+    }
+
     let data = null;
     try { data = await res.json(); } catch (_) { /* empty body */ }
     if (!res.ok) {
@@ -104,7 +150,8 @@ document.addEventListener("alpine:init", () => {
                     body: JSON.stringify({ email: this.email, password: this.password }),
                 });
                 cache.clear();  // reset per-user cache on login
-                window.location.href = "/";
+                const next = new URLSearchParams(window.location.search).get("next") || "/";
+                window.location.href = next;
             } catch (e) { this.error = e.message; }
             finally { this.loading = false; }
         },
@@ -132,12 +179,22 @@ document.addEventListener("alpine:init", () => {
 
     Alpine.data("auth", () => ({
         user: null,
+        _timer: null,
         async init() {
             try {
                 this.user = await cachedFetch("/accounts/me", 60 * 1000, v => this.user = v);
             } catch (_) { this.user = null; }
+            // Proactive refresh: access tokens live for JWT_ACCESS_EXPIRY minutes.
+            // Refresh every 10 min so an idle tab stays logged in without a 401.
+            if (this.user && !_onPublicPage()) {
+                this._timer = setInterval(() => { _refreshTokens(); }, 10 * 60 * 1000);
+            }
+        },
+        destroy() {
+            if (this._timer) clearInterval(this._timer);
         },
         async logout() {
+            if (this._timer) clearInterval(this._timer);
             try { await apiFetch("/accounts/logout", { method: "POST" }); } catch (_) {}
             cache.clear();
             this.user = null;
@@ -206,6 +263,62 @@ document.addEventListener("alpine:init", () => {
                 );
             } catch (e) { this.error = e.message; }
             finally { this.loading = false; }
+        },
+    }));
+
+    Alpine.data("chat", () => ({
+        messages: [],
+        input: "",
+        loading: false,
+        error: "",
+        suggestions: [
+            "What's your read on GBP/USD right now?",
+            "Show my account summary and open positions.",
+            "Any high-priority news for GBP/USD in the last 24h?",
+            "Would you buy 1000 units of GBPUSD now? Explain.",
+        ],
+        STORE_KEY: "chat:messages:v1",
+        init() {
+            try {
+                const raw = sessionStorage.getItem(this.STORE_KEY);
+                if (raw) this.messages = JSON.parse(raw);
+            } catch (_) { this.messages = []; }
+            this.$nextTick(() => this.scrollDown());
+        },
+        persist() {
+            try { sessionStorage.setItem(this.STORE_KEY, JSON.stringify(this.messages)); } catch (_) {}
+        },
+        scrollDown() {
+            const el = this.$refs.scroller;
+            if (el) el.scrollTop = el.scrollHeight;
+        },
+        reset() {
+            this.messages = [];
+            this.error = "";
+            this.persist();
+        },
+        async send() {
+            const text = this.input.trim();
+            if (!text || this.loading) return;
+            this.error = "";
+            this.messages.push({ role: "user", content: text });
+            this.input = "";
+            this.persist();
+            this.$nextTick(() => this.scrollDown());
+            this.loading = true;
+            try {
+                const res = await apiFetch("/api/chat/message", {
+                    method: "POST",
+                    body: JSON.stringify({ messages: this.messages }),
+                });
+                this.messages.push(res.message);
+                this.persist();
+            } catch (e) {
+                this.error = e.message;
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => this.scrollDown());
+            }
         },
     }));
 });

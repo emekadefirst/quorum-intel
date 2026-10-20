@@ -28,6 +28,12 @@ async def logout(response: Response) -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.post("/refresh")
+async def refresh(request: Request, response: Response) -> dict[str, str]:
+    """Exchange a valid refresh_token cookie for new access + refresh cookies."""
+    return await JwtService.refresh_tokens(request=request, response=response)
+
+
 @router.post("", status_code=201)
 async def create_account(data: CreateAccount) -> AccountObjectDTO:
     return await AccountService.create(data)

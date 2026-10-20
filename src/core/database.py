@@ -2,6 +2,7 @@ from src.configs.database import DATABASE_NAME
 
 MODEL_MODULES = [
     "src.modules.account.models",
+    "src.modules.trades.models",
     # Add new model modules here
 ]
 

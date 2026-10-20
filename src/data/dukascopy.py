@@ -72,9 +72,7 @@ def fetch_dukascopy(
 
     try:
         import dukascopy_python  # type: ignore[import-not-found]
-        from dukascopy_python.instruments import (  # type: ignore[import-not-found]
-            INSTRUMENT_FX_MAJORS_GBP_USD,
-        )
+        import dukascopy_python.instruments as _instruments  # type: ignore[import-not-found]
     except ImportError as e:
         raise ImportError(
             "dukascopy-python not installed. Run: uv add dukascopy-python"
@@ -82,9 +80,9 @@ def fetch_dukascopy(
 
     # per-pair instrument constants, fall back to GBPUSD if the pair isn't a major
     instrument = getattr(
-        dukascopy_python.instruments,
+        _instruments,
         f"INSTRUMENT_FX_MAJORS_{pair[:3]}_{pair[3:]}",
-        INSTRUMENT_FX_MAJORS_GBP_USD,
+        _instruments.INSTRUMENT_FX_MAJORS_GBP_USD,
     )
     interval_const = getattr(dukascopy_python, f"INTERVAL_{_INTERVAL_MAP[interval]}")
     offer_side = dukascopy_python.OFFER_SIDE_BID

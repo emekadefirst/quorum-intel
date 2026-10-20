@@ -14,6 +14,7 @@ dependencies = [
     "fastparquet>=2026.9.0",
     "langchain>=1.4.6",
     "langchain-anthropic>=0.3.0",
+    "mcp>=1.2.0",
     "langchain-google-genai>=2.0.0",
     "langchain-openai>=0.2.0",
     "lightgbm>=4.7.0",
@@ -30,6 +31,7 @@ dependencies = [
     "tomlkit>=0.15.2",
     "tortoise-orm>=1.1.9",
     "uvicorn>=0.54.0",
+    "websockets>=13.0",
     "yfinance>=1.7.0",
 ]
 
@@ -42,6 +44,7 @@ db-migrate = "src.scripts.db:migrate"
 db-upgrade = "src.scripts.db:upgrade"
 db-downgrade = "src.scripts.db:downgrade"
 db-history = "src.scripts.db:history"
+quorum-mcp = "src.intelligence.mcp_server:main"
 
 [dependency-groups]
 dev = ["ruff>=0.17.1"]

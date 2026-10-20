@@ -1,26 +1,11 @@
 from langchain.agents import create_agent
 
-from src.intelligence.prompts import (
-    SCHEME_GENERATION_PROMPT,
-    APPLICATION_PROCESSING_PROMPT,
-)
-from src.intelligence.tools import (
-    screening_tools,
-    classifying_tools,
-)
 from src.intelligence.llm import model
+from src.intelligence.prompts import TRADING_AGENT_PROMPT
+from src.intelligence.tools import trading_tools
 
-
-
-classifying_agent = create_agent(
+trading_agent = create_agent(
     model=model,
-    tools=classifying_tools,
-    system_prompt=SCHEME_GENERATION_PROMPT,
-)
-
-
-screening_agent = create_agent(
-    model=model,
-    tools=screening_tools,
-    system_prompt=APPLICATION_PROCESSING_PROMPT,
+    tools=trading_tools,
+    system_prompt=TRADING_AGENT_PROMPT,
 )

@@ -7,7 +7,12 @@
                     <span>Quorum</span>
                 </a>
                 <div class="hidden md:flex items-center gap-1">
-                    {% set nav_items = [('/', 'Dashboard', 'dashboard'), ('/signals', 'Signals', 'signals'), ('/news', 'News', 'news')] %}
+                    {% set nav_items = [
+                        ('/', 'Dashboard', 'dashboard'),
+                        ('/chat', 'Chat', 'chat'),
+                        ('/signals', 'Signals', 'signals'),
+                        ('/news', 'News', 'news'),
+                    ] %}
                     {% for href, label, key in nav_items %}
                         <a href="{{ href }}"
                            class="px-3 py-2 rounded-md text-sm font-medium {% if page == key %}bg-slate-800 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
@@ -17,18 +22,12 @@
                 </div>
             </div>
             <div class="hidden md:flex items-center gap-3" x-data="auth">
-                <template x-if="user">
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm text-slate-400" x-text="user?.name"></span>
-                        <button @click="logout()" class="text-sm text-slate-400 hover:text-white">Logout</button>
-                    </div>
-                </template>
-                <template x-if="!user">
-                    <div class="flex items-center gap-2">
-                        <a href="/login" class="px-3 py-1.5 rounded-md text-sm text-slate-300 hover:text-white">Sign in</a>
-                        <a href="/register" class="px-3 py-1.5 rounded-md text-sm bg-brand-600 hover:bg-brand-500 text-white font-medium">Get started</a>
-                    </div>
-                </template>
+                {% if user_name %}
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-slate-400">{{ user_name }}</span>
+                    <button @click="logout()" class="text-sm text-slate-400 hover:text-white">Logout</button>
+                </div>
+                {% endif %}
             </div>
             <button @click="open = !open" class="md:hidden text-slate-400 hover:text-white">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,6 +39,12 @@
             {% for href, label, key in nav_items %}
                 <a href="{{ href }}" class="block px-3 py-2 rounded-md text-sm {% if page == key %}bg-slate-800 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">{{ label }}</a>
             {% endfor %}
+            {% if user_name %}
+                <div class="pt-3 mt-3 border-t border-slate-800 text-sm text-slate-400">
+                    <span class="block px-3 py-1">{{ user_name }}</span>
+                    <button @click="logout()" class="block px-3 py-2 text-left w-full hover:text-white" x-data="auth">Logout</button>
+                </div>
+            {% endif %}
         </div>
     </div>
 </nav>

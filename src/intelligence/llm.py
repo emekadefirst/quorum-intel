@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from pydantic import SecretStr
 
 from src.configs.llm import (
     LLM_API_BASE_URL,
@@ -36,19 +37,25 @@ _DEFAULTS: dict[str, tuple[str, str]] = {
 def _build_anthropic(model: str, **kw: Any) -> BaseChatModel:
     from langchain_anthropic import ChatAnthropic
 
-    return ChatAnthropic(model_name=model, api_key=LLM_API_KEY, **kw)
+    return ChatAnthropic(model_name=model, api_key=SecretStr(LLM_API_KEY), **kw)
 
 
 def _build_google_gemini(model: str, **kw: Any) -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatGoogleGenerativeAI(model=model, google_api_key=LLM_API_KEY, **kw)
+    return ChatGoogleGenerativeAI(
+        model=model, google_api_key=SecretStr(LLM_API_KEY), **kw
+    )
 
 
 def _build_openai_compatible(model: str, base_url: str, **kw: Any) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    kwargs: dict[str, Any] = {"model": model, "api_key": LLM_API_KEY, **kw}
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "api_key": SecretStr(LLM_API_KEY),
+        **kw,
+    }
     if base_url:
         kwargs["base_url"] = base_url
     return ChatOpenAI(**kwargs)

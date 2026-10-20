@@ -6,11 +6,11 @@ import pandas as pd
 
 OHLC = ["open", "high", "low", "close"]
 
-# Canonical pair -> (dukascopy symbol, oanda instrument)
-PAIRS: dict[str, tuple[str, str]] = {
-    "GBPUSD": ("GBP/USD", "GBP_USD"),
-    "EURUSD": ("EUR/USD", "EUR_USD"),
-    "USDJPY": ("USD/JPY", "USD_JPY"),
+# Canonical pair -> (dukascopy, oanda, deriv) symbols
+PAIRS: dict[str, tuple[str, str, str]] = {
+    "GBPUSD": ("GBP/USD", "GBP_USD", "frxGBPUSD"),
+    "EURUSD": ("EUR/USD", "EUR_USD", "frxEURUSD"),
+    "USDJPY": ("USD/JPY", "USD_JPY", "frxUSDJPY"),
 }
 
 

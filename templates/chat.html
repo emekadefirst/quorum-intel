@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Chat · Quorum{% endblock %}
+
+{% block content %}
+<div x-data="chat" class="flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h1 class="text-2xl font-semibold text-white">Chat with Quorum</h1>
+            <p class="text-sm text-slate-400 mt-1">Ask about the market, request analysis, or instruct a trade.</p>
+        </div>
+        <button @click="reset()" :disabled="loading"
+                class="text-xs text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 rounded-md px-3 py-1.5 disabled:opacity-50">
+            New conversation
+        </button>
+    </div>
+
+    <!-- Messages -->
+    <div x-ref="scroller"
+         class="flex-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/40 p-4 space-y-4">
+        <template x-if="messages.length === 0">
+            <div class="h-full flex items-center justify-center">
+                <div class="text-center text-slate-500 max-w-md">
+                    <p class="text-sm">Try asking:</p>
+                    <ul class="mt-3 space-y-2 text-sm">
+                        <template x-for="s in suggestions" :key="s">
+                            <li>
+                                <button @click="input = s; send()"
+                                        class="w-full text-left px-3 py-2 rounded-md border border-slate-800 hover:border-brand-500/60 hover:bg-slate-800/40 text-slate-300"
+                                        x-text="s"></button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </template>
+
+        <template x-for="(msg, i) in messages" :key="i">
+            <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                <div :class="msg.role === 'user'
+                        ? 'max-w-[80%] rounded-2xl rounded-br-sm bg-brand-600 text-white px-4 py-2.5'
+                        : 'max-w-[80%] rounded-2xl rounded-bl-sm bg-slate-800 text-slate-100 px-4 py-2.5'">
+                    <p class="text-sm whitespace-pre-wrap" x-text="msg.content"></p>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="loading">
+            <div class="flex justify-start">
+                <div class="rounded-2xl rounded-bl-sm bg-slate-800 px-4 py-2.5">
+                    <div class="flex gap-1 items-center">
+                        <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span>
+                        <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse" style="animation-delay:150ms"></span>
+                        <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse" style="animation-delay:300ms"></span>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="error">
+            <div class="rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2 text-sm text-red-400" x-text="error"></div>
+        </template>
+    </div>
+
+    <!-- Input -->
+    <form @submit.prevent="send" class="mt-4 flex gap-2">
+        <input x-model="input" :disabled="loading"
+               @keydown.enter.prevent="send"
+               placeholder="Ask about GBP/USD, request analysis, instruct a trade..."
+               class="flex-1 rounded-md bg-slate-900 border border-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-50">
+        <button type="submit" :disabled="loading || !input.trim()"
+                class="rounded-md bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-sm font-medium text-white transition">
+            Send
+        </button>
+    </form>
+</div>
+{% endblock %}

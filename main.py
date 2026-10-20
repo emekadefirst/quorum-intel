@@ -14,6 +14,7 @@ from src.configs.app import (
     VERSION,
 )
 from src.core import TORTOISE_ORM, routes
+from src.modules.web.routes import register_auth_redirect
 
 app = FastAPI(
     title="Quorum",
@@ -38,6 +39,8 @@ app.add_middleware(
 
 for route in routes:
     app.include_router(route)
+
+register_auth_redirect(app)
 
 register_tortoise(
     app,
