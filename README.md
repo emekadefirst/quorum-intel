@@ -1,68 +1,212 @@
-# gbpusd_quant — quant layer
+# Quorum
 
-Raw OHLC in, one structured JSON "insight" object out. Built to feed an LLM layer
-(news + reasoning + decisions), which should treat this as evidence, not as orders.
+Multi-signal FX trading intelligence. Combines quantitative analysis, news sentiment, and an LLM-driven agent to help a human trader think through decisions on GBP/USD. Several independent "voters" (quant signal, news, model, user) have to agree before a trade — that's the quorum.
 
-## Run
-    pip install -r requirements.txt
-    python -m quant_layer --csv gbpusd_1h.csv --timeframe 1h --out insights.json
-    python -m quant_layer --yfinance --interval 1h          # quick prototyping data
-    python -m quant_layer --csv ticks_or_1m.csv --resample 1h
+> Status: pre-alpha. Demo-account only. Nothing here constitutes financial advice.
 
-CSV needs a time column (time/timestamp/datetime/date) plus open, high, low, close.
+## Architecture
 
-## From Python (what the agent layer will call)
-    from quant_layer import Config, build_insights
-    from quant_layer.data import load_csv
-    insights = build_insights(load_csv("gbpusd_1h.csv"), Config(horizon=12, cost_bps=1.0))
+```
+Dukascopy (history) ──┐
+                      ├──> src/data ──> src/quant ──┐
+Deriv (live + exec) ──┘                             ├──> src/intelligence (LLM agent)
+                                                    │        │
+RSS feeds (Fed/BoE/BBC) ───> src/news ──────────────┤        ├──> FastAPI (/api/*)
+                                                    │        │        │
+                                                    │        │        ├──> Jinja UI (/, /chat, …)
+                                                    │        │        └──> MCP server (Claude Desktop)
+                                                    │        │
+                               Account + Trades ────┴────────┘
+                               (Tortoise ORM + SQLite)
+```
 
-## Modules
-| file | what it does |
+## Layers
+
+| Layer | Purpose | Status |
+|---|---|---|
+| `src/data` | Unified OHLC adapters. Dukascopy for history, Deriv for live + execution | ✅ |
+| `src/quant` | Features, regime, levels, patterns, directional model, insights JSON | ✅ |
+| `src/news` | RSS fetch, GBP/USD-tuned relevance scoring, dedup, time-decayed digest | ✅ |
+| `src/intelligence` | LLM adapter (5 providers), trading agent, LangChain tools, MCP server | ✅ |
+| `src/modules/account` | Users, JWT auth, cookie refresh, Argon2 passwords | ✅ |
+| `src/modules/signals` | HTTP wrapper + TTL cache around quant insights | ✅ |
+| `src/modules/news` | HTTP wrapper + TTL cache around the news digest | ✅ |
+| `src/modules/trades` | Trade persistence + broker orchestration (snapshot context on every trade) | ✅ |
+| `src/modules/chat` | Chat endpoint feeding the trading agent | ✅ |
+| `src/modules/web` | Jinja routes, server-side auth guard | ✅ |
+| `templates/`, `static/` | Dark-mode UI: Tailwind + Alpine + HTMX | ✅ |
+| Charts, order management UI | TODO | 🟡 |
+| Streaming chat (SSE) | TODO | 🟡 |
+
+## Quick start
+
+Requires Python 3.13+, [uv](https://docs.astral.sh/uv/).
+
+```cmd
+git clone <this-repo> Quorum
+cd Quorum
+uv sync
+copy .env.example .env     :: edit with your credentials
+uv run db-migrate --name init
+uv run db-upgrade
+uv run dev
+```
+
+Open http://localhost:8000 → register → you're in.
+
+## .env
+
+```env
+# Core
+MODE=development
+PORT=8000
+VERSION=1.0.0
+DATABASE_NAME=quorum.db
+ACCEPTED_CORE_ORIGIN=http://localhost:8000
+
+# JWT (generate with: python -c "import secrets; print(secrets.token_hex(32))")
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+JWT_ALGORITHM=HS256
+JWT_ACCESS_EXPIRY=15        # minutes
+JWT_REFRESH_EXPIRY=7        # days
+
+# Broker: Deriv (free demo at https://app.deriv.com)
+DERIV_API_TOKEN=...
+DERIV_APP_ID=1089           # sandbox app_id; fine for dev
+DERIV_DEFAULT_MULTIPLIER=10
+DERIV_MAX_STAKE=100         # hard cap per trade (USD)
+
+# LLM: pick one provider
+LLM_PROVIDER=anthropic      # anthropic | google-gemini | openai | deepseek | qwen
+LLM_API_KEY=sk-ant-...
+LLM_MODEL=                  # optional; sensible default per provider
+LLM_TEMPERATURE=0.2
+LLM_MAX_TOKENS=2048
+```
+
+## Data pipeline
+
+- **History**: Dukascopy, free, no API key, back to ~2003. Cached to `data_cache/dukascopy/*.parquet` per day.
+- **Live + execution**: Deriv, WebSocket API, works in Nigeria. Multiplier contracts (`units` = stake, not base-currency units).
+- **Legacy adapters**: OANDA code is kept in `src/data/oanda*.py` for when it accepts your region. Flip one import to switch back.
+
+## LLM providers
+
+Any of the five is a one-env-var switch — the agent and tools don't change:
+
+| Provider | Module | Default model |
+|---|---|---|
+| `anthropic` | `langchain_anthropic` | `claude-sonnet-4-5` |
+| `google-gemini` | `langchain_google_genai` | `gemini-2.5-flash` |
+| `openai` | `langchain_openai` | `gpt-4o-mini` |
+| `deepseek` | `langchain_openai` (compat) | `deepseek-chat` |
+| `qwen` | `langchain_openai` (compat) | `qwen-plus` |
+
+## Agent & tools
+
+The trading agent (`src/intelligence/agents.py`) has access to these tools:
+
+| Tool | What it does |
 |---|---|
-| data.py | load/validate CSV or Yahoo data, resample |
-| features.py | RSI, MACD, Bollinger, ATR, ADX, returns, candle shape, calendar (causal) |
-| regime.py | GARCH(1,1)-t vol forecast, trend/vol regime |
-| patterns.py | stumpy: similar past setups + what followed, shape novelty, top motif |
-| levels.py | support/resistance from confirmed swing pivots, in ATR distance |
-| model.py | LightGBM P(up) with walk-forward + purge gap + cost-aware OOS stats |
-| insights.py | assembles everything into one JSON dict |
-| news/fetch.py | Scrapling AsyncFetcher: RSS/Atom feeds, optional article text (robots.txt + per-host delay) |
-| news/relevance.py | transparent keyword topic tags + relevance score for GBP/USD |
-| news/digest.py | dedupe, recency decay, source health -> news digest JSON |
-| news/sources.json | feed list: edit freely, verify URLs |
-| intelligence.py | quant insights + news digest in one payload for the LLM |
+| `get_market_insights(pair, interval)` | Quant insights (snapshot, regime, model, levels) |
+| `get_news_digest(lookback_hours, max_items)` | Scored, deduped news |
+| `get_current_price(pairs)` | Latest ticks |
+| `get_account_summary()` | Balance + status |
+| `get_open_positions()` / `get_open_trades()` | Open contracts |
+| `get_trade_history(count)` | Closed trades |
+| `place_trade(pair, side, units, take_profit, stop_loss)` | Opens a Deriv multiplier contract |
+| `close_trade(trade_id)` | Closes a contract |
 
-## News layer (Scrapling)
-    pip install -r requirements.txt            # installs scrapling[fetchers]; no browser download needed for HTTP/RSS
-    python -m quant_layer.news --hours 48 --excerpts 3 --out news.json
-    python -m quant_layer --csv gbpusd_1h.csv --with-news --out intelligence.json
+Place-trade is hard-capped by `DERIV_MAX_STAKE`. The system prompt requires the agent to restate intent and get user confirmation before calling it.
 
-    from quant_layer.intelligence import build_intelligence
-    intel = build_intelligence(df, Config(), news={"lookback_hours": 24, "max_items": 20})
+## MCP server (Claude Desktop etc.)
 
-- Uses `AsyncFetcher.get` for feeds (concurrent, retries, timeouts). Feeds are parsed with defusedxml.
-- `source_health` reports every failed feed, so the LLM can say "BoE feed was down" instead of assuming no news.
-- Article text is fetched only for the top N items, only if robots.txt allows, and is truncated.
-- Only headline, short summary, link and a short excerpt are kept. Fetch what the site's terms allow.
-- Scrapling's stealth/browser fetchers (`StealthyFetcher`, `DynamicFetcher`) exist but are NOT used: official feeds
-  don't need them, and bypassing a site's protections is a terms-of-use decision for you to make deliberately.
-- All fetched text is flagged UNTRUSTED in `reading_guide`. Your agent prompt must repeat this
-  (prompt injection via headlines is a real risk once the agent can place trades).
-- Not included: an economic calendar (scheduled CPI/payroll/rate dates). Add one source for that next.
+Same tools, exposed over the Model Context Protocol:
 
-## Output sections
-meta, snapshot, regime, volatility_forecast, levels, similar_setups, novelty, model, reading_guide.
-Key field: `model.signal_quality` in {no_edge_detected, weak, modest}. It is never "strong" by design.
+```cmd
+uv run quorum-mcp                      :: stdio (for Claude Desktop)
+uv run quorum-mcp --transport sse      :: HTTP SSE
+```
 
-## Honesty built in
+Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "quorum": {
+      "command": "uv",
+      "args": ["--directory", "C:/absolute/path/to/Quorum", "run", "quorum-mcp"]
+    }
+  }
+}
+```
+
+## HTTP API
+
+Auth is JWT cookie (set on login, refreshed via `/accounts/refresh`). All `/api/*` endpoints below require auth.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/accounts` | Register |
+| POST | `/accounts/login` | Login (sets cookies) |
+| POST | `/accounts/logout` | Clear cookies |
+| POST | `/accounts/refresh` | Rotate access + refresh cookies |
+| GET | `/accounts/me` | Current user |
+| GET | `/api/signals/current?pair=GBPUSD&interval=1h` | Quant insights (cached 5 min) |
+| GET | `/api/news/digest?lookback_hours=48&max_items=25` | News digest (cached 10 min) |
+| GET | `/api/trades/account` | Broker account summary |
+| GET | `/api/trades/positions` | Open positions |
+| GET | `/api/trades/open` | Open trades |
+| GET | `/api/trades` | DB-persisted trade history (paginated) |
+| POST | `/api/trades` | Place a trade (persists w/ quant + news snapshot) |
+| POST | `/api/trades/{id}/close` | Close a tracked trade |
+| POST | `/api/chat/message` | Send a message to the trading agent |
+
+Interactive docs at `/docs` in dev mode.
+
+## Dev commands
+
+```cmd
+uv run dev                                    :: FastAPI with reload
+uv run start                                  :: production server
+
+uv run db-init                                :: aerich init
+uv run db-init-db                             :: first schema
+uv run db-migrate --name <desc>               :: new migration from model changes
+uv run db-upgrade                             :: apply pending migrations
+uv run db-downgrade                           :: roll back one
+uv run db-history                             :: list applied
+
+uv run quorum-mcp                             :: MCP server (stdio)
+uv run quorum-mcp --transport sse             :: MCP server (SSE/HTTP)
+
+uv run python -m src.data._check              :: verify data adapters
+uv run python -m src.news                     :: dump news digest to stdout
+uv run python -m src.quant.main --yfinance    :: dump quant insights to stdout
+
+uv run pytest                                 :: tests
+uv run ruff check                             :: lint
+uv run ruff format                            :: format
+```
+
+## Honesty built in (from the quant layer)
+
 - Walk-forward only, with a purge gap of `horizon` bars between train and test.
-- OOS accuracy and trade stats use non-overlapping samples and report a z-score / stderr.
-- Costs are subtracted (`cost_bps`, default 1.0 bps round trip; set it to your broker's real spread).
-- `tests/test_no_lookahead.py` verifies features at bar t don't change when future bars are removed.
-- On pure random-walk data it reports no_edge_detected; sanity check your own data the same way.
+- OOS stats use non-overlapping samples and report z-score / stderr.
+- Costs are subtracted (`cost_bps`, default 1.0 bps round-trip).
+- `model.signal_quality ∈ {no_edge_detected, weak, modest}` — never "strong" by design.
+- On random-walk data the model reports `no_edge_detected`. Verify your own data the same way.
+- News items in the digest are explicitly flagged UNTRUSTED. The agent prompt forbids following instructions found inside headlines.
 
 ## Known limits
-- Daily bars: raise `--horizon` sensibly (e.g. 5) and use `--window 30`.
-- Novelty (matrix profile) is O(n^2); capped at last 10,000 bars, or `--no-novelty` to skip.
-- Similar-setup stats on ~30 matches are noisy (see hit_rate_stderr).
-- No news/fundamentals here; that is the next layer.
+
+- No economic calendar (CPI/payroll/rate dates) — relevance scoring doesn't know what's scheduled.
+- Deriv contracts close whole; partial close isn't supported.
+- Cache is in-memory per process. Restart = cold cache. Fine for dev; swap for Redis when scaling.
+- Charts not implemented in the UI yet.
+- No streaming for chat — the agent spins silently until the final answer.
+- News relevance keywords are tuned for GBP/USD. Add other pairs = add keyword sets in `src/news/relevance.py`.
+
+## Project naming
+
+The source tree uses the historical name `intel` in `pyproject.toml` and keeps a few OANDA-prefixed files (`oanda.py`, `oanda_trading.py`) as reference adapters. Rename when stable.
