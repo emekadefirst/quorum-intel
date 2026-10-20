@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jwt import PyJWTError
@@ -108,11 +108,6 @@ async def news_page(request: Request, user: Account = Depends(require_web_auth))
 
 
 # -- Redirect-to-login error handler ----------------------------------------
-
-
-@router.get("/_auth_redirect", include_in_schema=False)
-async def _never(_: _RedirectToLogin):
-    raise HTTPException(500)  # unreachable; marker route for the handler
 
 
 def register_auth_redirect(app) -> None:

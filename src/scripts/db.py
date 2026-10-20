@@ -1,41 +1,50 @@
+"""Thin wrappers around aerich commands, exposed as uv scripts.
+
+Extra CLI args are forwarded, so you can do:
+    uv run db-migrate --name add_trades_table
+    uv run db-upgrade --in-transaction false
+"""
+
 import subprocess
 import sys
 
 
-def _run(args: list[str]) -> None:
-    subprocess.run([sys.executable, "-m", "aerich", *args], check=True)
+def _run(cmd: str) -> None:
+    extra = sys.argv[1:]
+    subprocess.run([sys.executable, "-m", "aerich", cmd, *extra], check=True)
 
 
 def init() -> None:
-    """Initialize aerich: aerich init -t src.core.database.TORTOISE_ORM"""
-    _run(["init", "-t", "src.core.database.TORTOISE_ORM"])
+    """aerich init -t src.core.database.TORTOISE_ORM [extra args]"""
+    extra = sys.argv[1:] or ["-t", "src.core.database.TORTOISE_ORM"]
+    subprocess.run([sys.executable, "-m", "aerich", "init", *extra], check=True)
 
 
 def init_db() -> None:
-    """Create initial database schema: aerich init-db"""
-    _run(["init-db"])
+    """aerich init-db [extra args]"""
+    _run("init-db")
 
 
 def migrate() -> None:
-    """Create migration from model changes: aerich migrate"""
-    _run(["migrate"])
+    """aerich migrate [--name <name>]"""
+    _run("migrate")
 
 
 def upgrade() -> None:
-    """Apply migrations: aerich upgrade"""
-    _run(["upgrade"])
+    """aerich upgrade [extra args]"""
+    _run("upgrade")
 
 
 def downgrade() -> None:
-    """Rollback last migration: aerich downgrade"""
-    _run(["downgrade"])
+    """aerich downgrade [extra args]"""
+    _run("downgrade")
 
 
 def history() -> None:
-    """Show migration history: aerich history"""
-    _run(["history"])
+    """aerich history"""
+    _run("history")
 
 
 def heads() -> None:
-    """Show migration heads: aerich heads"""
-    _run(["heads"])
+    """aerich heads"""
+    _run("heads")
